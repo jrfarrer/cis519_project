@@ -25,6 +25,7 @@ vignettes/*.pdf
 .httr-oauth
 .groupme_api_token
 googlesheets_token.rds
+.nyt_api_token
 
 # knitr and R markdown default cache directories
 /*_cache/
