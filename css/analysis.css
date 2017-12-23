@@ -1,0 +1,46 @@
+img { 
+   display: block;
+   margin: 0 auto;
+}
+.dt-center {
+    vertical-align: middle !important;
+}
+.body {
+	font-size: 9px;
+}
+code.r {
+  font-size: 10px;
+}
+pre { 
+  font-size: 10px
+}
+th {
+  text-align: center;
+}
+.table > tbody > tr > td {
+  text-align: center;
+}
+.pagedtable-header-name {
+  overflow: visible;
+}
+.gmisc_table {
+  margin: 0 auto;
+}
+.table {
+  margin: 0 auto;
+  
+}
+.tbl75 .table {
+  width:75% !important;
+}
+
+.table > tbody > tr > td {
+  vertical-align: middle;
+}
+.table th:not([align]) {
+  text-align:center;
+  vertical-align:middle;
+}
+.meme_img img {
+  border:1px solid #021a40;
+}

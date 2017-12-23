@@ -1,0 +1,84 @@
+---
+title: "Word Cloud"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+output:
+  bookdown::html_document2:
+    css: css/analysis.css
+    code_folding: hide
+    df_print: paged
+    number_sections: yes
+    self-contained: true
+    fig_caption: yes
+    toc: true
+    toc_float: true
+params:
+  external_queries: false
+---
+
+```{r setup, include = FALSE}
+# knitr options
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.align = 'center',
+                      fig.width = 9, fig.height = 8, cache = FALSE)
+
+# Forces any incline R to only have 2 digits and a comma for the thounsands place
+knitr::knit_hooks$set(inline = function(x) {if(!is.numeric(x)){ x }else{ prettyNum(round(x,2), big.mark=",") } })
+
+# Don't show scientific notation and only 3 digits
+options(scipen = 999, digits = 3)
+
+# Load packages
+pacman::p_load(tidyverse, stringr, lubridate, googlesheets, forcats, htmlTable, jsonlite, tm, wordcloud, tidytext)
+
+# Token to connect to Googlespreadsheets
+suppressMessages(gs_auth(token = "googlesheets_token.rds", verbose = FALSE))
+
+# Create folder structure
+data_path <- "data/"; viz_path <- "viz/"
+purrr::walk(c(data_path, viz_path), dir.create, showWarnings = FALSE)
+```
+
+Load preprocessed data
+
+```{r}
+data <- read_csv(paste0(data_path, "preprocessed.csv"), col_names = c("headline", "class"))
+```
+
+```{r}
+fn_word_cloud <- function(data, headline_class) {
+
+  filtered_data <- 
+    data %>%
+    filter(class == !!quo(headline_class))
+
+  docs <- 
+    Corpus(VectorSource(filtered_data$headline)) %>%
+    tm_map(removePunctuation) %>%
+    tm_map(removeNumbers) %>%
+    tm_map(tolower)  %>%
+    tm_map(removeWords, stopwords("english")) %>%
+    tm_map(stripWhitespace)
+  
+  tdm <- 
+    DocumentTermMatrix(docs) %>%
+    #DocumentTermMatrix(docs, control = list(weighting = weightTfIdf)) %>%
+    removeSparseTerms(sparse = .999)
+  
+  words <- 
+    tidy(tdm) %>%
+    group_by(term) %>%
+    summarise(count = sum(count)) %>%
+    arrange(desc(count))
+  
+  png(paste0(viz_path, headline_class, ".png"), width = 800, height = 800)
+  wordcloud(words = words$term, freq = words$count, scale = c(5, 0.5), max.words = 70,random.order = FALSE, rot.per = 0.35,
+            use.r.layout = FALSE,  colors = brewer.pal(6,"Dark2"))
+  dev.off()
+}
+```
+
+```{r}
+classes <- data %>% distinct(class) %>% pull(class)
+
+walk(classes, fn_word_cloud, data = data)
+```
+

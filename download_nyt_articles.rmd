@@ -1,0 +1,102 @@
+---
+title: "CIS519 New York Times Articles"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+output:
+  bookdown::html_document2:
+    css: css/analysis.css
+    code_folding: hide
+    df_print: paged
+    number_sections: yes
+    self-contained: true
+    fig_caption: yes
+    toc: true
+    toc_float: true
+params:
+  external_queries: false
+---
+
+```{r setup, include = FALSE}
+# knitr options
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.align = 'center',
+                      fig.width = 9, fig.height = 8, cache = FALSE)
+
+# Forces any incline R to only have 2 digits and a comma for the thounsands place
+knitr::knit_hooks$set(inline = function(x) {if(!is.numeric(x)){ x }else{ prettyNum(round(x,2), big.mark=",") } })
+
+# Don't show scientific notation and only 3 digits
+options(scipen = 999, digits = 3)
+
+# Load packages
+pacman::p_load(tidyverse, stringr, lubridate, googlesheets, forcats, htmlTable, jsonlite)
+
+# Token to connect to Googlespreadsheets
+suppressMessages(gs_auth(token = "googlesheets_token.rds", verbose = FALSE))
+
+# Create folder structure
+data_path <- "data/"; viz_path <- "viz/"
+purrr::walk(c(data_path, viz_path), dir.create, showWarnings = FALSE)
+```
+
+Pull for 10 months worth of articles
+
+```{r}
+base_url <- "http://api.nytimes.com/svc/archive/v1/"
+api_token <- paste0(".json?api-key=", system("cat .nyt_api_token", intern = TRUE))
+
+dl_all_sections <- function(base_url, api_token, year, month) {
+  full_url <- paste0(base_url, year, "/", month, api_token)
+  fromJSON(full_url, flatten = TRUE)$response$docs
+}
+
+tmp_list <- list()
+for (i in 1:10) {
+  tmp_list[[i]] <- 
+    dl_all_sections(base_url, api_token, 2017, i) %>%
+    as_tibble() %>%
+    select(pub_date, section_name, headline.main)
+}
+
+all_sections <- tmp_list %>% rbind_pages() %>% as_tibble()
+```
+
+```{r}
+tbl_section_lookup <-
+  tribble(
+    ~section_name, ~category_name, ~category, 
+    'Business Day', 'business', 'b',
+    'Science', 'science and technology', 't',
+    'Technology', 'science and technology', 't',
+    'Arts', 'entertainment', 'e',
+    'Movies', 'entertainment', 'e',
+    'Theater', 'entertainment', 'e',
+    'Health',	'health', 'm'
+  )
+```
+
+Filter just to the sections we want
+
+```{r}
+nyt_final <- 
+  all_sections %>%
+  inner_join(tbl_section_lookup, by = c('section_name')) %>%
+  select(category, title = headline.main)
+
+nyt_final %>% write_csv(paste0(data_path, "articles.csv"))
+```
+
+Push to gSheets
+
+```{r}
+if (params$external_queries) {
+  gs_upload(paste0(data_path, "articles.csv"), sheet_title = "CIS519 New York Times Headlines", overwrite = TRUE)
+}
+```
+
+
+```{r}
+nyt_final %>%
+  count(category, sort = TRUE) %>%
+  htmlTable()
+```
+
+
